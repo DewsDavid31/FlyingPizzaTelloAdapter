@@ -1,4 +1,4 @@
-namespace FlyingPizzaTello.Entities
+namespace FlyingPizzaTello
 {
     public class GeoLocation
     {
