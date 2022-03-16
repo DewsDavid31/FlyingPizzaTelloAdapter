@@ -8,6 +8,7 @@ namespace FlyingPizzaTello
 
         public decimal Longitude { get; set; }
 
+        
         public bool Equals(GeoLocation other) =>
             other != null
             && Math.Abs(Latitude - other.Latitude) < Tolerance
