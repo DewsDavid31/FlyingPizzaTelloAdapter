@@ -9,7 +9,6 @@ namespace FlyingPizzaTello
     {
 
         // Adapter between FlyingPizza dispatcher and Tello SDK Drone
-        private const string FleetPage = "http://8080/Fleet/";
         private const decimal LongToCm = 1110000;
         private const string Command = "command ";
         private const string Right = "right ";
