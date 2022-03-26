@@ -6,7 +6,7 @@ namespace FlyingPizzaTello
     public class TelloAdapter
     {
         private Guid BadgeNumber { get;}
-        private TelloController  Controller { get;}
+        public TelloController  Controller { get;}
 
         public TelloAdapter(Guid badge, GeoLocation home)
         {
@@ -36,6 +36,7 @@ namespace FlyingPizzaTello
         [HttpPost("/completregistration")]
         public async Task<IActionResult> CompleteRegistration()
         {
+            // Yes I know it is mispelt, its how the legacy code is currently
             //"https://{droneIpAddress}/completregistration"
             return new OkResult();
         }
