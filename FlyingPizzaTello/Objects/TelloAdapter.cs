@@ -1,10 +1,14 @@
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Razor.TagHelpers;
 
 namespace FlyingPizzaTello
 {
 
-    public class TelloAdapter
+    public class TelloAdapter : Drone
     {
+        private static HttpListener _httpServer;
+        
         private Guid BadgeNumber { get;}
         public TelloController  Controller { get;}
 
@@ -15,7 +19,7 @@ namespace FlyingPizzaTello
         }
         
         [HttpPost("/assigndelivery")]
-        public async Task<IActionResult> Assign(GeoLocation destination)
+        public async Task<IActionResult> AssignDelivery(GeoLocation destination)
         {
             //https://{droneIpAddress}/assigndelivery
             Controller.DeliverOrder(destination);
@@ -26,20 +30,21 @@ namespace FlyingPizzaTello
         
         
         [HttpPost("/initregistration")]
-        public async Task<IActionResult> Init()
+        public async Task<IActionResult> InitRegistration()
         {
             
             //"https://{droneIpAddress}/initregistration
             return new OkResult();
         }
         
-        [HttpPost("/completregistration")]
+        [HttpPost("/completeregistration")]
         public async Task<IActionResult> CompleteRegistration()
         {
             // Yes I know it is mispelt, its how the legacy code is currently
             //"https://{droneIpAddress}/completregistration"
             return new OkResult();
         }
+
     }
 
 

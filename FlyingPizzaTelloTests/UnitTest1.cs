@@ -1,41 +1,75 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
-using NUnit.Framework;
+using Moq;
 using FlyingPizzaTello;
+using Microsoft.AspNetCore.Mvc;
+using Xunit;
+using FluentAssertions;
+using Moq.Protected;
+
 
 namespace FlyingPizzaTelloTests;
 
 public class Tests
 {
-    [SetUp]
-    public void Setup()
-    {
-    }
 
-    [Test]
+    [Fact]
     public async Task ShouldRegisterWithDispatcher()
     {
-        var client = new HttpClient();
-        var values = new Dictionary<string, string> {};
-        var content = new FormUrlEncodedContent(values);
-        var response = await client.PostAsync("http://localhost:5017/initregistration", content);
-        Assert.AreEqual(response.IsSuccessStatusCode, true);
+        //TODO: mock httpclient to do direct invocation of adapter
+        //TODO: mock drone behavior when not connected
+        var testGuid = new Guid();
+        var testIp = "http://tello/";
+        var testDrone = new TelloAdapter(testGuid, new GeoLocation
+        {
+            Latitude = 0m,
+            Longitude =0m
+        });
+        var mockHttpHandlerSetup = new Mock<HttpClientHandler>();
+        mockHttpHandlerSetup.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(testDrone.InitRegistration().IsCompletedSuccessfully.ToString())
+            });
+        var mockHttpHandler = mockHttpHandlerSetup.Object;
+        
+        var testDroneInfo = new DroneRegistrationInfo
+        {
+            BadgeNumber = testGuid,
+            IpAddress = testIp
+        };
+        var mockedDroneRepo = new Mock<IDronesRepository>().Object;
+        var mockedOrderRepo = new Mock<IOrdersRepository>().Object;
+        var testGateway = new DroneGateway();
+        testGateway.changeHandler(mockHttpHandler);
+        await mockedDroneRepo.CreateAsync(testDrone);
+        var testDispatcher = new DispatcherController(mockedDroneRepo, mockedOrderRepo, testGateway);
+        var response = await testDispatcher.RegisterNewDrone(testDroneInfo);
+        var expected = new OkResult();
+        response.Should().NotBeNull();
+        response.Should().BeEquivalentTo(expected);
 
     }
     
-    [Test]
+    [Fact]
     public async Task ShouldFinishInitWithDispatcher()
     {
         var client = new HttpClient();
         var values = new Dictionary<string, string> {};
+        if (values == null) throw new ArgumentNullException(nameof(values));
         var content = new FormUrlEncodedContent(values);
         var response = await client.PostAsync("http://localhost:5017/completregistration", content);
-        Assert.AreEqual(response.IsSuccessStatusCode, true);
+        var expected = new OkResult();
+        response.Should().NotBeNull();
+        response.Should().BeEquivalentTo(expected);
     }
     
-    [Test]
+    [Fact]
     public async Task ShouldTakeOrder()
     {
         var client = new HttpClient();
@@ -46,10 +80,12 @@ public class Tests
         };
         var content = new FormUrlEncodedContent(values);
         var response = await client.PostAsync("http://localhost:5017/assignorder", content);
-        Assert.AreEqual(response.IsSuccessStatusCode, true);
+        var expected = new OkResult();
+        response.Should().NotBeNull();
+        response.Should().BeEquivalentTo(expected);
     }
     
-    [Test]
+    [Fact]
     public async Task ShouldGoToProperGeo()
     {
 
@@ -65,6 +101,7 @@ public class Tests
         };
         var content = new FormUrlEncodedContent(values);
         await client.PostAsync("http://localhost:5017/assignorder", content);
-        Assert.AreEqual(ourAdapter.Controller.Location, testLocation);
+        ourAdapter.Controller.Location.Should().NotBeNull();
+        ourAdapter.Controller.Location.Should().BeEquivalentTo(testLocation);
     }
 }
