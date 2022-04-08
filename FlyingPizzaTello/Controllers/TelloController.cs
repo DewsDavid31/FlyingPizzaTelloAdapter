@@ -21,13 +21,14 @@ namespace FlyingPizzaTello
         private const decimal MinDist = 20;
         private string _direction;
         private GeoLocation DestinationCm { get; set; }
-        private GeoLocation Destination { get; set; }
+        public GeoLocation Destination { get; set; }
         private GeoLocation Home { get;}
         private new int BadgeNumber { get;}
         public string Status { get; set; }
         public GeoLocation Location { get; set; }
         public string IpAddress { get; }
-        private readonly Tello _tello;
+        
+        private Tello _tello;
         
 
 
@@ -41,8 +42,16 @@ namespace FlyingPizzaTello
             IpAddress = "192.168.10.1";
             _tello = new Tello();
         }
-        
-
+        public TelloController(int badge, GeoLocation home,Tello mockedTello)
+        {
+            BadgeNumber = badge;
+            Status = "Ready";
+            Location = home; 
+            Destination = home;
+            Home = home;
+            IpAddress = "192.168.10.1";
+            _tello = mockedTello;
+        }
 
         public void DeliverOrder(GeoLocation customerLocation)
         {
@@ -213,7 +222,7 @@ public class Tello
 
     private readonly int _telloPort = 8889;
 
-    private readonly UdpClient _socket;
+    private UdpClient _socket;
 
 
     public Tello()
@@ -221,8 +230,7 @@ public class Tello
         _socket = new UdpClient(_telloPort);
         _socket.Connect(_telloAddress, _telloPort);
     }
-
-
+    
     public async Task<bool> send_command(string command)
     {
         byte[] bytes = Encoding.UTF8.GetBytes(command);

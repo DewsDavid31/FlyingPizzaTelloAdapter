@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Razor.TagHelpers;
 
@@ -16,6 +17,11 @@ namespace FlyingPizzaTello
         {
             BadgeNumber = badge;
             Controller = new TelloController(BadgeNumber.GetHashCode(),home);
+        }
+        public TelloAdapter(Guid badge, GeoLocation home, Tello drone)
+        {
+            BadgeNumber = badge;
+            Controller = new TelloController(BadgeNumber.GetHashCode(),home, drone);
         }
         
         [HttpPost("/assigndelivery")]
