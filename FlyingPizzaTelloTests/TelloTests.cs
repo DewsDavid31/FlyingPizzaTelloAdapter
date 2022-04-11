@@ -1,8 +1,11 @@
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using FluentAssertions;
 using FlyingPizzaTello;
 using FlyingPizzaTello.Mocks;
+using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 using Moq;
 using Xunit;
 
@@ -12,6 +15,23 @@ public class TelloTests
 {
     [Fact]
     public async Task TelloAdapterShouldAssignDelivery()
+    {
+        Assert.Fail("Not implemented");
+    }
+    [Fact]
+    public async Task TelloAdapterShouldInitRegistration()
+    {
+        
+        Assert.Fail("Not implemented");
+    }
+    [Fact]
+    public async Task TelloAdapterShouldCompleteRegistration()
+    {
+        
+        Assert.Fail("Not implemented");
+    }
+    [Fact]
+    public async Task TelloAdapterShouldMoveToDestinationAndBack()
     {
         var testHome = new GeoLocation
         {
@@ -23,19 +43,12 @@ public class TelloTests
             Latitude = 0.001m,
             Longitude = 0.001m
         };
-        var mockedHttpHandlerFactory = new MockedHttpHandler();
-        var testTelloSetup = new Mock<MockedTello>(testHome);
-        var testTello = testTelloSetup.Object;
-        var adapter = new TelloAdapter(new Guid(), testHome, testTello);
-        mockedHttpHandlerFactory.setResponseAssignDelivery("http://192.168.10.1/drone/assigndelivery", adapter, testDestination);
-        var testGateway = new DroneGateway();
-        testGateway.changeHandler(mockedHttpHandlerFactory.createHandler());
-        var response = await testGateway.AssignDelivery("192.168.10.1", "0", testDestination);
-        response.Should().BeTrue();
-        testTello.response.Should().Be("OK");
-        testTello.current.Should().NotBeNull();
-        testTello.current.Should().BeEquivalentTo(testHome);
-        //TODO: this overrides send_command of our mocked drone, disallowing normal return of "OK"
-        testTelloSetup.Verify(x => x.send_command(It.IsAny<string>()));
+        var testDroneAdapter = new TelloAdapter(new Guid(), testHome, true);
+ 
+        var testHttpClient = new HttpClient();
+        var responseMessage = await testHttpClient.PostAsync("http://localhost:5017/assignDelivery", new StringContent(testDestination.ToJson()));
+        var expected = new OkResult();
+        responseMessage.Should().NotBeNull();
+        responseMessage.Should().BeEquivalentTo(expected);
     }
 }

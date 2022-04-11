@@ -1,27 +1,45 @@
 using System.Net;
 using System.Net.Sockets;
+using FlyingPizzaTello.Mocks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Razor.TagHelpers;
+using Microsoft.VisualBasic.CompilerServices;
 
 namespace FlyingPizzaTello
 {
 
-    public class TelloAdapter : Drone
+    public class TelloAdapter
     {
         private static HttpListener _httpServer;
         
         private Guid BadgeNumber { get;}
         public TelloController  Controller { get;}
 
-        public TelloAdapter(Guid badge, GeoLocation home)
+        
+        public TelloAdapter(Guid badge, GeoLocation home, bool offline=false)
         {
-            BadgeNumber = badge;
-            Controller = new TelloController(BadgeNumber.GetHashCode(),home);
+            // Offline version
+            if (offline)
+            {
+                BadgeNumber = badge;
+                Controller = new TelloController(BadgeNumber.GetHashCode(), home, new MockedTello(home));
+            }
+            else
+            {
+                BadgeNumber = badge;
+                Controller = new TelloController(BadgeNumber.GetHashCode(),home);
+            }
         }
-        public TelloAdapter(Guid badge, GeoLocation home, Tello drone)
+
+        public async Task Listen(string ip)
         {
-            BadgeNumber = badge;
-            Controller = new TelloController(BadgeNumber.GetHashCode(),home, drone);
+            var listener = new HttpListener();
+            listener.Prefixes.Add(ip);
+            listener.Start();
+            while (listener.IsListening)
+            {
+                // Handle events here
+            }
         }
         
         [HttpPost("/assigndelivery")]
@@ -31,10 +49,7 @@ namespace FlyingPizzaTello
             Controller.DeliverOrder(destination);
             return new OkResult();
         }
-        
-            
-        
-        
+
         [HttpPost("/initregistration")]
         public async Task<IActionResult> InitRegistration()
         {
@@ -46,7 +61,6 @@ namespace FlyingPizzaTello
         [HttpPost("/completeregistration")]
         public async Task<IActionResult> CompleteRegistration()
         {
-            // Yes I know it is mispelt, its how the legacy code is currently
             //"https://{droneIpAddress}/completregistration"
             return new OkResult();
         }
