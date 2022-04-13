@@ -1,34 +1,22 @@
 using System.Net;
-using System.Net.Sockets;
-using FlyingPizzaTello.Mocks;
+using FlyingPizzaTello.Controllers;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Razor.TagHelpers;
-using Microsoft.VisualBasic.CompilerServices;
 
-namespace FlyingPizzaTello
+namespace FlyingPizzaTello.Adapters
 {
 
     public class TelloAdapter
     {
-        private static HttpListener _httpServer;
+        private HttpListener _httpServer;
         
         private Guid BadgeNumber { get;}
-        public TelloController  Controller { get;}
+        public TelloController  Controller { get; set; }
 
         
         public TelloAdapter(Guid badge, GeoLocation home, bool offline=false)
         {
-            // Offline version
-            if (offline)
-            {
-                BadgeNumber = badge;
-                Controller = new TelloController(BadgeNumber.GetHashCode(), home, new MockedTello(home));
-            }
-            else
-            {
-                BadgeNumber = badge;
-                Controller = new TelloController(BadgeNumber.GetHashCode(),home);
-            }
+            BadgeNumber = badge;
+            Controller = new TelloController(BadgeNumber.GetHashCode(), home, offline);
         }
 
         public async Task Listen(string ip)
@@ -42,15 +30,13 @@ namespace FlyingPizzaTello
             }
         }
         
-        [HttpPost("/assigndelivery")]
         public async Task<IActionResult> AssignDelivery(GeoLocation destination)
         {
             //https://{droneIpAddress}/assigndelivery
             Controller.DeliverOrder(destination);
             return new OkResult();
         }
-
-        [HttpPost("/initregistration")]
+        
         public async Task<IActionResult> InitRegistration()
         {
             
@@ -58,11 +44,16 @@ namespace FlyingPizzaTello
             return new OkResult();
         }
         
-        [HttpPost("/completeregistration")]
         public async Task<IActionResult> CompleteRegistration()
         {
             //"https://{droneIpAddress}/completregistration"
             return new OkResult();
+        }
+
+        public void StopSocket()
+        {
+            _httpServer.Close();
+            Controller.StopSocket();
         }
 
     }

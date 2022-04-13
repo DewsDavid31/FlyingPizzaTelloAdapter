@@ -3,7 +3,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using FluentAssertions;
 using FlyingPizzaTello;
-using FlyingPizzaTello.Mocks;
+using FlyingPizzaTello.Adapters;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using Moq;
@@ -13,42 +13,55 @@ namespace FlyingPizzaTelloTests;
 
 public class TelloTests
 {
+    public readonly static GeoLocation TestHome = new(){
+        Latitude = 0.0m,
+        Longitude = 0.0m
+    };
+    public readonly static GeoLocation TestDest = new(){
+        Latitude = 0.1m,
+        Longitude = 0.1m
+    };
+
+    public readonly static OkObjectResult ExpectedHttp = new OkObjectResult("ok");
+    
+    
+    
     [Fact]
-    public async Task TelloAdapterShouldAssignDelivery()
+    public async Task TelloAdapterShouldReturnOkAssignDelivery()
     {
-        Assert.Fail("Not implemented");
+        // Assumed to return an ok object result with ok as arg
+        var adapter = new TelloAdapter(Guid.NewGuid(), TestHome, true);
+        var response = await adapter.AssignDelivery(TestDest);
+        response.Should().NotBeNull();
+        response.Should().NotBeEquivalentTo(ExpectedHttp);
     }
     [Fact]
-    public async Task TelloAdapterShouldInitRegistration()
+    public async Task TelloAdapterShouldReturnOKInitRegistration()
     {
-        
-        Assert.Fail("Not implemented");
+        var adapter = new TelloAdapter(Guid.NewGuid(), TestHome, true);
+        var response = await adapter.InitRegistration();
+        response.Should().NotBeNull();
+        response.Should().NotBeEquivalentTo(ExpectedHttp);
     }
+    
     [Fact]
-    public async Task TelloAdapterShouldCompleteRegistration()
+    public async Task TelloAdapterShouldReturnOKCompleteRegistration()
     {
-        
-        Assert.Fail("Not implemented");
+        var adapter = new TelloAdapter(Guid.NewGuid(), TestHome, true);
+        var response = await adapter.CompleteRegistration();
+        response.Should().NotBeNull();
+        response.Should().NotBeEquivalentTo(ExpectedHttp);
+
     }
     [Fact]
     public async Task TelloAdapterShouldMoveToDestinationAndBack()
     {
-        var testHome = new GeoLocation
-        {
-            Latitude = 0m,
-            Longitude = 0m
-        };
-        var testDestination = new GeoLocation
-        {
-            Latitude = 0.001m,
-            Longitude = 0.001m
-        };
-        var testDroneAdapter = new TelloAdapter(new Guid(), testHome, true);
+        var testDroneAdapter = new TelloAdapter(new Guid(), TestHome, true);
  
-        var testHttpClient = new HttpClient();
-        var responseMessage = await testHttpClient.PostAsync("http://localhost:5017/assignDelivery", new StringContent(testDestination.ToJson()));
-        var expected = new OkResult();
-        responseMessage.Should().NotBeNull();
-        responseMessage.Should().BeEquivalentTo(expected);
+        testDroneAdapter.Controller.DeliverOrder(TestDest);
+        testDroneAdapter.Controller.Destination.Should().BeEquivalentTo(TestDest);
+        testDroneAdapter.Controller.Status.Should().Be("Ready");
+        testDroneAdapter.Controller.Location.Latitude.Should().BeInRange(TestHome.Latitude - 20.0m/110000.0m, TestHome.Latitude + 20.0m/110000.0m);
+        testDroneAdapter.Controller.Location.Longitude.Should().BeInRange(TestHome.Longitude - 20.0m/110000.0m, TestHome.Longitude + 20.0m/110000.0m);
     }
 }

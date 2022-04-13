@@ -1,8 +1,7 @@
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
 
-namespace FlyingPizzaTello
+using System.Net;
+
+namespace FlyingPizzaTello.Controllers
 {
 
     public class TelloController
@@ -20,19 +19,24 @@ namespace FlyingPizzaTello
         private const decimal MaxDist = 200;
         private const decimal MinDist = 20;
         private string _direction;
-        private GeoLocation DestinationCm { get; set; }
         public GeoLocation Destination { get; set; }
-        private GeoLocation Home { get;}
+        private GeoLocation Home { get; set; }
         private new int BadgeNumber { get;}
         public string Status { get; set; }
         public GeoLocation Location { get; set; }
         public string IpAddress { get; }
         
         private Tello _tello;
-        
+
+        private GeoLocation _calcDestination { get; set; }
+
+        private GeoLocation _calcDestinationCm { get; set; }
+
+        private bool Offline { get; set; }
 
 
-        public TelloController(int badge, GeoLocation home)
+
+        public TelloController(int badge, GeoLocation home, bool offline = false)
         {
             BadgeNumber = badge;
             Status = "Ready";
@@ -40,21 +44,14 @@ namespace FlyingPizzaTello
             Destination = home;
             Home = home;
             IpAddress = "192.168.10.1";
-            _tello = new Tello();
-        }
-        public TelloController(int badge, GeoLocation home,Tello mockedTello)
-        {
-            BadgeNumber = badge;
-            Status = "Ready";
-            Location = home; 
-            Destination = home;
-            Home = home;
-            IpAddress = "192.168.10.1";
-            _tello = mockedTello;
+            Offline = offline;
+            _tello = new Tello(home, Offline);
+            
         }
 
         public void DeliverOrder(GeoLocation customerLocation)
         {
+            Destination = customerLocation;
             SendCommand(Command);
             SendCommand(Takeoff);
             SendCommand(customerLocation);
@@ -68,14 +65,13 @@ namespace FlyingPizzaTello
 
         private void SendCommand(GeoLocation telemetry)
         {
-            Destination = telemetry;
             IEnumerable<string> commands = PointToTelloCommands(telemetry.Latitude, telemetry.Longitude);
             if (Status != "Dead")
                 // Refuses more commands on any error.
             {
                 foreach (string command in commands)
                 {
-                    var task = _tello.send_command(command);
+                    var task = _tello.send_command(command, Offline);
                     task.Wait();
                 }
             }
@@ -86,7 +82,7 @@ namespace FlyingPizzaTello
             if (Status != "Dead")
             {
                 // Refuses to take commands if an error occured.
-                var task = _tello.send_command(command);
+                var task = _tello.send_command(command, Offline);
                 task.Wait();
                 if (!task.Result)
                 {
@@ -111,105 +107,134 @@ namespace FlyingPizzaTello
         private IEnumerable<string> PointToTelloCommands(decimal lat, decimal longitude)
         {
             // Unrolls a lat/long command into multiple Tello 200cm directions
-            Destination = new GeoLocation();
-            Destination.Latitude = lat;
-            Destination.Longitude = longitude;
-            DestinationCm = new GeoLocation();
-            DestinationCm.Latitude = ArcToCm(Destination.Latitude);
-            DestinationCm.Longitude = ArcToCm(Destination.Longitude);
+            _calcDestination = new GeoLocation();
+            _calcDestination.Latitude = lat;
+            _calcDestination.Longitude = longitude;
+            _calcDestinationCm = new GeoLocation();
+            _calcDestinationCm.Latitude = ArcToCm(_calcDestination.Latitude);
+            _calcDestinationCm.Longitude = ArcToCm(_calcDestination.Longitude);
             decimal tempX = ArcToCm(Location.Latitude);
             decimal tempY = ArcToCm(Location.Longitude);
             decimal amount = 0;
-            double telloFudgeValue = 0.45;
+            //double telloFudgeValue = 0.45;
             // This value was added since I observed a command of 111 cm ends up being about 50 cm in distance
             // You may have to calibrate your tello for this factor to be accurate.
             string tempCommand;
             List<string> commands = new List<string>();
-            
-            while (tempY < DestinationCm.Latitude - MinDist)
+            while (tempX != _calcDestinationCm.Latitude && tempY != _calcDestinationCm.Longitude)
             {
-                _direction = Forward;
-                decimal diffY = Math.Abs(DestinationCm.Longitude - tempY);
-                if (diffY >= MaxDist)
+                while (tempY < _calcDestinationCm.Latitude - MinDist)
                 {
-                    amount = MaxDist;
+                    _direction = Forward;
+                    decimal diffY = Math.Abs(_calcDestinationCm.Longitude - tempY);
+                    if (diffY >= MaxDist)
+                    {
+                        amount = MaxDist;
 
+                    }
+
+                    if (diffY < MaxDist)
+                    {
+                        amount = Math.Abs(tempY - _calcDestinationCm.Longitude);
+
+                    }
+
+                    tempY += amount;
+                    tempCommand = _direction + amount;
+                    amount = 0;
+                    commands.Add(tempCommand);
                 }
-                if (diffY < MaxDist)
+
+                amount = 0;
+                while (tempX > _calcDestinationCm.Latitude + MinDist)
                 {
-                    amount = Math.Abs(tempY - DestinationCm.Longitude);
-                    
+
+                    _direction = Left;
+                    decimal diffX = Math.Abs(tempX - _calcDestinationCm.Latitude);
+                    if (diffX >= MaxDist)
+                    {
+                        amount = MaxDist;
+
+                    }
+
+                    if (diffX < MaxDist)
+                    {
+                        amount = Math.Abs(tempY - _calcDestinationCm.Latitude);
+
+                    }
+
+                    tempX -= amount;
+                    amount = 0;
+                    tempCommand = _direction + amount;
+                    commands.Add(tempCommand);
                 }
-                tempY += amount;
-                tempCommand = _direction + amount;
-                commands.Add(tempCommand);
+
+                amount = 0;
+                while (tempX < _calcDestinationCm.Latitude - MinDist)
+                {
+
+                    _direction = Right;
+                    decimal diffX = Math.Abs(tempX - _calcDestinationCm.Latitude);
+                    if (diffX >= MaxDist)
+                    {
+                        amount = MaxDist;
+
+                    }
+
+                    if (diffX < MaxDist)
+                    {
+                        amount = Math.Abs(tempY - _calcDestinationCm.Latitude);
+
+                    }
+
+                    tempX += amount;
+                    amount = 0;
+                    tempCommand = _direction + amount;
+                    commands.Add(tempCommand);
+                }
+
+
+
+                amount = 0;
+                while (tempY > _calcDestinationCm.Longitude + MinDist)
+                {
+                    _direction = Backward;
+                    var diffY = Math.Abs(_calcDestinationCm.Longitude - tempY);
+                    if (diffY >= MaxDist)
+                    {
+                        amount = MaxDist;
+                    }
+
+                    if (diffY < MaxDist)
+                    {
+                        amount = Math.Abs(tempY - _calcDestinationCm.Longitude);
+
+                    }
+
+                    tempY -= amount;
+                    amount = 0;
+                    tempCommand = _direction + amount;
+                    commands.Add(tempCommand);
+                }
+
+                amount = 0;
+                // For now we update the location after unrolling since Tello doesn't keep lat/long.
+                Location = new GeoLocation();
+                Location.Latitude = CmToArc(tempX);
+                Location.Longitude = CmToArc(tempY);
             }
 
-            while (tempX > DestinationCm.Latitude + MinDist)
-            {
-                
-                _direction = Left;
-                decimal diffY = Math.Abs(tempX - DestinationCm.Latitude);
-                if (diffY >= MaxDist)
-                {
-                    amount = MaxDist;
-
-                }
-                if (diffY < MaxDist)
-                {
-                    amount = Math.Abs(tempY - DestinationCm.Latitude);
-                    
-                }
-                tempX -= amount;
-                tempCommand = _direction + amount;
-                commands.Add(tempCommand);
-            }
-
-            while (tempX <  - MinDist)
-            {
-                _direction = Right;
-                var diffX = tempX - DestinationCm.Latitude;
-                if (diffX >= MaxDist)
-                {
-                    amount = MaxDist;
-                }
-                if (diffX < MaxDist)
-                {
-                    amount = Math.Abs(tempX - DestinationCm.Latitude);
-                }
-                tempX += amount;
-                tempCommand = _direction + amount;
-                commands.Add(tempCommand);
-            }
-
-            while (tempY > DestinationCm.Longitude + MinDist)
-            {
-                _direction = Backward;
-                var diffY = Math.Abs(DestinationCm.Longitude - tempY);
-                if ( diffY >= MaxDist)
-                {
-                    amount = MaxDist;
-                }
-                if ( diffY < MaxDist)
-                {
-                    amount = Math.Abs(tempY - DestinationCm.Longitude);
-                    
-                }
-                tempY -= amount;
-                tempCommand = _direction + amount;
-                commands.Add(tempCommand);
-            }
-
-            // For now we update the location after unrolling since Tello doesn't keep lat/long.
-            Location = new GeoLocation();
-            Location.Latitude = CmToArc(tempX);
-            Location.Longitude = CmToArc(tempY);
             return commands.ToArray();
         }
 
         public override string ToString()
         {
             return $"ID:{BadgeNumber}\nlocation:{Location}\nDestination:{Destination}\nStatus:{Status}";
+        }
+
+        public void StopSocket()
+        {
+            _tello.stopSocket();
         }
     }
 }
