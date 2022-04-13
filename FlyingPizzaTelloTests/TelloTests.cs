@@ -3,7 +3,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using FluentAssertions;
 using FlyingPizzaTello;
-using FlyingPizzaTello.Adapters;
+using FlyingPizzaTello.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using Moq;
