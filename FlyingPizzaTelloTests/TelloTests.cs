@@ -1,67 +1,125 @@
-using System;
-using System.Net.Http;
-using System.Threading.Tasks;
-using FluentAssertions;
+﻿using FluentAssertions;
 using FlyingPizzaTello;
-using FlyingPizzaTello.Controllers;
-using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson;
 using Moq;
 using Xunit;
+using Xunit.Abstractions;
 
-namespace FlyingPizzaTelloTests;
-
-public class TelloTests
+namespace FlyingPizzaTelloTests
 {
-    public readonly static GeoLocation TestHome = new(){
-        Latitude = 0.0m,
-        Longitude = 0.0m
-    };
-    public readonly static GeoLocation TestDest = new(){
-        Latitude = 0.1m,
-        Longitude = 0.1m
-    };
+    public class TelloTests
+    {
+        // Helper method for console output during testing.
+        private readonly ITestOutputHelper _testOutputHelper;
 
-    public readonly static OkObjectResult ExpectedHttp = new OkObjectResult("ok");
-    
-    
-    
-    [Fact]
-    public async Task TelloAdapterShouldReturnOkAssignDelivery()
-    {
-        // Assumed to return an ok object result with ok as arg
-        var adapter = new TelloAdapter(Guid.NewGuid(), TestHome, true);
-        var response = await adapter.AssignDelivery(TestDest);
-        response.Should().NotBeNull();
-        response.Should().NotBeEquivalentTo(ExpectedHttp);
-    }
-    [Fact]
-    public async Task TelloAdapterShouldReturnOKInitRegistration()
-    {
-        var adapter = new TelloAdapter(Guid.NewGuid(), TestHome, true);
-        var response = await adapter.InitRegistration();
-        response.Should().NotBeNull();
-        response.Should().NotBeEquivalentTo(ExpectedHttp);
-    }
-    
-    [Fact]
-    public async Task TelloAdapterShouldReturnOKCompleteRegistration()
-    {
-        var adapter = new TelloAdapter(Guid.NewGuid(), TestHome, true);
-        var response = await adapter.CompleteRegistration();
-        response.Should().NotBeNull();
-        response.Should().NotBeEquivalentTo(ExpectedHttp);
+        public TelloTests(
+        ITestOutputHelper testOutputHelper)
+        {
+            _testOutputHelper = testOutputHelper;
+        }
 
-    }
-    [Fact]
-    public async Task TelloAdapterShouldMoveToDestinationAndBack()
-    {
-        var testDroneAdapter = new TelloAdapter(new Guid(), TestHome, true);
- 
-        testDroneAdapter.Controller.DeliverOrder(TestDest);
-        testDroneAdapter.Controller.Destination.Should().BeEquivalentTo(TestDest);
-        testDroneAdapter.Controller.Status.Should().Be("Ready");
-        testDroneAdapter.Controller.Location.Latitude.Should().BeInRange(TestHome.Latitude - 20.0m/110000.0m, TestHome.Latitude + 20.0m/110000.0m);
-        testDroneAdapter.Controller.Location.Longitude.Should().BeInRange(TestHome.Longitude - 20.0m/110000.0m, TestHome.Longitude + 20.0m/110000.0m);
+        [Fact]
+        public void tello_drone_should_have_destination_in_route()
+        {
+            var mockedDispatcher = new Mock<DroneToDispatchGateway>().Object;
+            var drone = new TelloDrone(
+                Constants.TestRecord,
+                mockedDispatcher);
+
+            var route = drone.GetRoute();
+            route.Should()
+                .NotBeNull();
+            route.Should()
+                .Contain(Constants.Destination);
+        }
+
+        [Fact]
+        public void tello_drone_should_have_start_in_route()
+        {
+            var mockedDispatcher = new Mock<DroneToDispatchGateway>().Object;
+            var drone = new TelloDrone(
+                Constants.TestRecord,
+                mockedDispatcher);
+            drone.Destination = Constants.Destination;
+
+            var route = drone.GetRoute();
+            route.Should()
+                .NotBeNull();
+            route.Should()
+                .Contain(Constants.HomeLocation);
+        }
+
+        [Fact]
+        public void TestGetRouteAllPositiveNumbers()
+        {
+            var mockedDispatcher = new Mock<DroneToDispatchGateway>().Object;
+            var home = new GeoLocation
+            {
+                Latitude = 0.0m,
+                Longitude = 0.0m
+            };
+            var dest = new GeoLocation
+            {
+                Latitude = 3.0m,
+                Longitude = 4.0m
+            };
+            var drone = new TelloDrone(
+                Constants.TestRecord,
+                mockedDispatcher);
+            drone.Destination = dest;
+            drone.HomeLocation = home;
+
+            var route = drone.GetRoute();
+            route.Should()
+                .NotBeNull();
+            foreach (var geoLocation in route)
+            {
+                geoLocation.Latitude.Should()
+                    .BeGreaterThanOrEqualTo(0m);
+                geoLocation.Longitude.Should()
+                    .BeGreaterThanOrEqualTo(0m);
+            }
+        }
+
+        [Fact]
+        public void TestTelloGetRouteAllNegativeNumbers()
+        {
+            var mockedDispatcher = new Mock<DroneToDispatchGateway>().Object;
+            var home = new GeoLocation
+            {
+                Latitude = -1.0m,
+                Longitude = -1.0m
+            };
+            var dest = new GeoLocation
+            {
+                Latitude = -3.0m,
+                Longitude = -4.0m
+            };
+            var drone = new TelloDrone(new DroneRecord
+                {
+                    BadgeNumber = Constants.TestBadgeNumber,
+                    CurrentLocation = home, 
+                    Destination = dest,
+                    DispatcherUrl = Constants.DispatcherIp,
+                    DroneIp = Constants.DroneIp,
+                    HomeLocation = home,
+                    Id = Constants.DroneId,
+                    OrderId = Constants.TestOrderId,
+                    State = DroneState.Ready
+                },
+                mockedDispatcher);
+            drone.Destination = dest;
+            drone.HomeLocation = home;
+
+            var route = drone.GetRoute();
+            route.Should()
+                .NotBeNull();
+            foreach (var geoLocation in route)
+            {
+                geoLocation.Latitude.Should()
+                    .BeLessThanOrEqualTo(0.0m);
+                geoLocation.Longitude.Should()
+                    .BeLessThanOrEqualTo(0.0m);
+            }
+        }
     }
 }
