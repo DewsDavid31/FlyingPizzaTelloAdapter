@@ -1,17 +1,15 @@
 using System.Threading.Tasks;
-using Domain.DTO;
-using Domain.DTO.DroneDispatchCommunication;
-using Domain.Entities;
-using Domain.GatewayDefinitions;
 using FluentAssertions;
 using FlyingPizzaTello;
+using FlyingPizzaTello.DTO;
+using FlyingPizzaTello.DTO.DroneDispatchCommunication;
+using FlyingPizzaTello.Entities;
+using FlyingPizzaTello.GatewayDefinitions;
 using FlyingPizzaTello.Objects;
 using Moq;
-using SimDrone;
-using SimDrone.Controllers;
 using Xunit;
 
-namespace Tests.Back;
+namespace FlyingPizzaTelloTests;
 
 public class RealDroneTests
 {
@@ -144,7 +142,7 @@ public class RealDroneTests
             Id = Constants.TestOrderId,
             OrderId = Constants.TestOrderId,
             State = DroneState.Ready
-        },mockedGateway.Object, new SimDroneController(), false);
+        },mockedGateway.Object, new SimDroneController(), true);
         telloDrone.DeliverOrder(new AssignDeliveryRequest
         {
             DroneId = "unused",

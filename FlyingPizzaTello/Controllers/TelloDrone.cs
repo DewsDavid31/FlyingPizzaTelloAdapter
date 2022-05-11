@@ -1,6 +1,10 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using FlyingPizzaTello.DTO;
+using FlyingPizzaTello.DTO.DroneDispatchCommunication;
+using FlyingPizzaTello.Entities;
+using FlyingPizzaTello.GatewayDefinitions;
 
 namespace FlyingPizzaTello.Objects;
 
